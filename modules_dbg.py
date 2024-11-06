@@ -52,7 +52,7 @@ def plot_slearnt_vs_s(s_low, s_high, FLOPS, eps, dt, fig_num=0):
 
   brkpnt1 = 1
 
-def plot_slearnt_vs_s_biterr(s_low, s_high, FLOPS, eps, dt, fig_num=0):
+def plot_slearnt_vs_s_biterr(s_low, s_high, FLOPS, eps, dt, fig, ax):
   s_vec = np.linspace(s_low, s_high, 50)
   # s_vec = np.logspace(np.log10(s_low), np.log10(s_high), 100)
   s_learnt_vec = np.zeros(s_vec.shape)
@@ -64,27 +64,24 @@ def plot_slearnt_vs_s_biterr(s_low, s_high, FLOPS, eps, dt, fig_num=0):
     eps_BP_vec[ind_s] = eps_BP
 
   # plt.figure(fig_num)
-  plt.subplot(1,2,1)
-  plt.plot(s_vec, s_learnt_vec, linewidth=2, label=f"FLOPs={FLOPS/1e5:0.2f}e5")
-  plt.ylabel("$R (1-P_B)$")
+  line1, = ax[0].plot(s_vec, s_learnt_vec, linewidth=2)
+  ax[0].set_ylabel("$R (1-\epsilon^{-1} P_{b, \lambda_T, \\tilde{\\rho}_R})$")
   
   # plt.plot(s_vec, FLOPS/s_vec)
-  plt.xscale("log")
-  plt.yscale("log")
-  plt.xlabel("R")  
-  plt.grid()
-
-  plt.subplot(1,2,2)
-  plt.plot(s_vec, eps_BP_vec, linewidth=2, label=f"FLOPs={FLOPS/1e5:0.2f}e5")
-  # plt.plot(s_vec, FLOPS/s_vec)
-  #plt.ylim((0.8, 1))
-  plt.xscale("log")
-  plt.xlabel("R")
-  plt.ylabel("$\epsilon^*$")
-  plt.grid()
-  # plt.show(block=False)
+  ax[0].set_xscale("log")
+  ax[0].set_yscale("log")
+  ax[0].set_xlabel("$R$")  
+  ax[0].grid()
+  
+  line2, = ax[1].plot(s_vec, eps_BP_vec, linewidth=2, label=f"FLOPs={FLOPS/1e5:0.2f}e5")
+  ax[1].set_xscale("log")
+  ax[1].set_xlabel("$R$")
+  ax[1].set_ylabel("$\epsilon^*$")
+  ax[1].grid()  
 
   brkpnt1 = 1
+
+  return line1, line2
 
 def plot_slearnt_vs_s_closed_form(s_low, s_high, FLOPS, eps, dt, fig_num=0):
   s_vec = np.linspace(s_low, s_high, 50)
@@ -120,16 +117,21 @@ def plot_slearnt_vs_s_closed_form(s_low, s_high, FLOPS, eps, dt, fig_num=0):
 
   brkpnt1 = 1
 
-def plot_slearnt_vs_s_postproc(s_opt_vec, s_learnt_vec, eps_BP_vec, fig_num=0):
-   plt.subplot(1,2,1)
-   plt.plot(s_opt_vec, s_learnt_vec, "ko", markersize=5)
-   plt.grid()
+def plot_slearnt_vs_s_postproc(s_opt_vec, s_learnt_vec, eps_BP_vec, fig, ax, lines, legends):   
+  ax[0].plot(s_opt_vec, s_learnt_vec, "ko", markersize=5)
 
-   plt.subplot(1,2,2)
-   plt.plot(s_opt_vec, eps_BP_vec, "ko", markersize=5)
-   plt.plot(np.linspace(1e1, 1e9, 100), 0.5*np.ones(100), "k--", linewidth=2)
-   plt.grid()
+  ax[1].plot(s_opt_vec, eps_BP_vec, "ko", markersize=5)
+  ax[1].plot(np.linspace(1e1, 1e9, 100), 0.5*np.ones(100), "k--", linewidth=2)  
+  
+  ax[0].set_xlim((1e2, 7e4))   
+  ax[1].set_xlim((1e2, 7e4))
+  ax[1].set_ylim((0.49, 0.6))      
 
+  ax[0].grid()
+  ax[1].grid()
+
+  #  fig.legend((l3, l4), ('Line 3', 'Line 4'), loc='outside right upper')
+  fig.legend(lines, legends, loc='outside right center')
 
 def plot_slearnt_vs_t(t_low, t_high, s, eps, dt, fig_num=0):
   t_vec = np.linspace(t_low, t_high, 100)

@@ -1,6 +1,3 @@
-# 2-layer bipartite graph
-# only one cluster
-
 import numpy as np
 from matplotlib import cm
 import matplotlib.pyplot as plt
@@ -21,15 +18,18 @@ dt, eps, eps_str = 6, 0.5, '0pt5'
 degree_dist = 'binomial_binomial'
 varsigma, tau = 1e7, 1e7
 
-filename = 'data_dir/'+degree_dist+'_biterr_dt'+str(dt)+'_eps'+eps_str+'_numpts100'
+# filename = 'data_dir/'+degree_dist+'_biterr_dt'+str(dt)+'_eps'+eps_str+'_numpts100'
+# start_idx, end_idx = 30, 99
+filename = 'data_dir/'+degree_dist+'_biterr_dt'+str(dt)+'_eps'+eps_str+'_numpts200'
+start_idx, end_idx, step_idx = 30, 170, 2
+
 varsigma, tau = 2e5, 8e5       ## dt, eps, eps_str = 6, 0.5, '0pt5'
-start_idx, end_idx = 20, 99
 mult_fact = 6
 
 
 flops_slearnt_dict = np.load(filename+'.npy', allow_pickle='TRUE').item()
 
-flops_vec = np.array([float(x) for x in list(flops_slearnt_dict.keys())])[start_idx:end_idx]
+flops_vec = np.array([float(x) for x in list(flops_slearnt_dict.keys())])[start_idx:end_idx:step_idx]
 flops_vec_adjusted = flops_vec*varsigma*tau*mult_fact
 PB_vec = (1-np.array([flops_slearnt_dict[str(flops_vec[x])]['s_learnt'] for x in range(len(flops_vec))])/np.array([flops_slearnt_dict[str(flops_vec[x])]['s_opt'] for x in range(len(flops_vec))]))
 epsBP_vec = np.array([flops_slearnt_dict[str(flops_vec[x])]['eps_BP'] for x in range(len(flops_vec))])
@@ -65,6 +65,20 @@ train_err_approx = 4*(dt*del_vec)**2
 excess_entropy_lb = 0.5*(train_err**2)
 # excess_entropy_lb_approx = -np.log(1-train_err_approx**2)
 
+A = 406.4
+B = 410.7
+alpha_scale = 0.34
+beta_scale = 0.28
+chinchilla_xs_entropy_scaling = A/(N_opt_vec**alpha_scale) + B/(D_opt_vec**beta_scale)
+
+
+# Fit a linear regression line to the data
+x_vec = np.log(N_opt_vec[20:50])
+y_vec = np.log(excess_entropy_lb[20:50])
+slope, intercept, r_value, p_value, std_err = linregress(x_vec, y_vec)
+slope_str = str(f"{slope:0.2f}")
+
+excess_entropy_lb_fit = np.exp(np.log(N_opt_vec)*slope+intercept)
 
 ###################################################################
 ####################### Emergence & Plateau #######################
@@ -83,106 +97,79 @@ expr = G - (1-smp.exp(-a*G))
 roots = smp.solve(expr, G)
 G_sol = roots[0].subs(a, k)
 
-gcc_ratio = smp.lambdify([p, S], G_sol)
+gcc_ratio_func = smp.lambdify([p, S], G_sol)
 
-lmd = 1
-# Sl_vec = np.array([1e2, 1e2, 1e2])
-# Sl_mix = np.array([0.6, 0.2, 0.2])
-# num_Sl_vec = np.array([2, 4, 8])
-# eta_l_vec = np.array([1, 10, 20])
-# sigma_l_vec = np.array([0, 10, 30])
-
-# Sl_vec = np.array([1e2, 1e2, 1e2, 1e2])
-# Sl_mix = np.array([0.4, 0.2, 0.2, 0.2])
-# num_Sl_vec = np.array([2, 4, 8, 16])
-# eta_l_vec = np.array([1, 10, 20, 30])
-# sigma_l_vec = np.array([0, 2, 4, 8])
-
-
-# ## Smooth emergence
-# L = 100
-# Sl_vec = 1e3*np.ones(L)
-# # Sl_mix = np.random.rand(L)
-# x = np.linspace(-1, 1, L)
-# Sl_mix = norm(loc=0, scale=0.5).pdf(x)
-# Sl_mix = Sl_mix/np.sum(Sl_mix)
-# num_Sl_vec = 100*np.ones(L)
-# # eta_l_vec = np.round(np.linspace(1,10,L))
-# eta_l_vec = np.round(np.exp(np.sqrt(np.linspace(1,10,L))))
-# sigma_l_vec = np.round(np.linspace(0,10,L))
-
-## Smooth emergence
-
-
-## Plateau
+## Emergence - unimodal
 L = 100
+L_vec = np.arange(1, L+1, 1)
+# Sl_vec = 1e3*np.ones(L)
 Sl_vec = 1e3*np.ones(L)
-# Sl_mix = np.random.rand(L)
-x = np.linspace(-1, 1, L)
-y = norm(loc=-1, scale=0.1).pdf(x)
-z = norm(loc=0.7, scale=0.1).pdf(x)
-Sl_mix = (z+y)/np.sum(z+y)
-num_Sl_vec = 100*np.ones(L)
-# eta_l_vec = np.round(np.linspace(1,10,L))
-eta_l_vec = np.round(np.exp(np.sqrt(np.linspace(1,10,L))))
-sigma_l_vec = np.round(np.linspace(0,10,L))
+min_nl, max_nl = 2, 8
+q_nl_vec = np.ones(max_nl-min_nl)/(max_nl - min_nl)
+nl_vec = np.arange(min_nl, max_nl+1, 1)
+# eta_l_vec = np.round((L_vec*0.2)**2)
+# eta_l_vec = np.round(np.log(L_vec)+1)
+# eta_l_vec = np.round(np.exp(7*L_vec/L)) # works
+eta_l_vec = np.round(np.exp(7*L_vec/L)) #
+# eta_l_vec = np.round(7*L_vec)
+sigma_l_vec = np.round(np.log2(L_vec))
 
+# x = np.linspace(-1, 1, L)
+# y = norm(loc=0.5, scale=0.3).pdf(x)
+# q_l_vec = y/np.sum(y)
+# q_l_vec_unimodal = q_l_vec.copy()
 
-gcc_ratio_avg = np.zeros(t_opt_vec.shape)
-prereq_factor = np.ones(t_opt_vec.shape)
+y = np.array([binom.pmf(a, L, 0.5) for a in L_vec])
+# q_l_vec = y/np.sum(y)
+q_l_vec = y
+q_l_vec_unimodal = q_l_vec.copy()
 
-subtaskidx = 1
+gcc_ratio_avg_unimodal, gcc_ratio_1subtask = get_accuracy_curve(q_l_vec, q_nl_vec, nl_vec, Sl_vec, s_opt_vec, t_opt_vec, sigma_l_vec, eta_l_vec, dt, gcc_ratio_func)
 
-for ind_mix, mix_wt in enumerate(Sl_mix):
-    Sl = Sl_vec[ind_mix]
-    num_Sl = num_Sl_vec[ind_mix] # num skills reqd for subtask
-    eta_l = eta_l_vec[ind_mix]
-    Rc2 = s_opt_vec*(s_opt_vec-1)/2
+######### Plateau = Emergence + multimodal #########
+# x = np.linspace(-1, 1, L)
+# y = norm(loc=-0.5, scale=0.05).pdf(x)
+# z = norm(loc=0.5, scale=0.1).pdf(x)
+# q_l_vec = (z+y)/np.sum(z+y)
+# q_l_vec_multimodal = q_l_vec
+# pmf_wt_vec = np.array([1/3, 1/3, 1/3])
+# centroid_vec = np.array([0.3, 0.5, 0.9])
 
-    pss_vec = (1/Sl**2)*(1-(1-(dt/s_opt_vec)**2)**(t_opt_vec)) 
-    # pss_vec = (1/Sl**2)*((dt/s_opt_vec)**2)*(t_opt_vec)
-    
-    # Chernoff bound
-    term1_pl = (1-np.exp(-Rc2*KL_div(eta_l/Rc2, pss_vec)))*(eta_l/Rc2 < pss_vec) + (1/np.sqrt(2*Rc2))*np.exp(-Rc2*KL_div(eta_l/Rc2, pss_vec))*(eta_l/Rc2 > pss_vec) 
-    term2_pl = prereq_factor**(2*sigma_l_vec[ind_mix]) #  factor of 2 - one for s_1 and another for s_2    
-    pl_vec = term1_pl*term2_pl
+pmf_wt_vec = np.array([0.4, 0.4, 0.2])
+centroid_vec = np.array([0.2, 0.6, 0.95])
 
-    # >>> for debug
-    # pl_vec = pss_vec
+pmf_mix_vec = np.zeros(L)
+for ind_mix in range(len(pmf_wt_vec)):    
+    this_pmf = np.array([binom.pmf(a, L, centroid_vec[ind_mix]) for a in L_vec])
+    pmf_mix_vec = pmf_mix_vec+pmf_wt_vec[ind_mix]*this_pmf
 
-    # # ## Chebyshev # does not work
-    # var_val = Rc2*pss_vec*(1-pss_vec)
-    # mean_val = pss_vec*Rc2
-    # bound_val = var_val/(eta_l-mean_val)**2
-    # pl_vec = (1-bound_val)*(eta_l < mean_val) + (1-bound_val/(1+bound_val))*(eta_l > mean_val)
-    # # pl_vec = (1-bound_val)*(eta_l < mean_val) + (bound_val)*(eta_l > mean_val)
-    # # pl_vec = (bound_val)*(eta_l < mean_val) + (1-bound_val)*(eta_l > mean_val)
+# q_l_vec = pmf_mix_vec/np.sum(pmf_mix_vec)
+q_l_vec = pmf_mix_vec
+q_l_vec_multimodal = q_l_vec
 
-    gcc_ratio_vec = np.array([gcc_ratio(pl_vec[ind], Sl) for ind in range(len(pl_vec))])
-    gcc_ratio_vec = np.nan_to_num(gcc_ratio_vec)
-    gcc_ratio_avg = gcc_ratio_avg+mix_wt*gcc_ratio_vec**num_Sl
-    if ind_mix == subtaskidx:
-        gcc_ratio_onesubtask = gcc_ratio_vec**num_Sl
-    
-    prereq_factor = gcc_ratio_vec
+gcc_ratio_avg_multi_modal, _ = get_accuracy_curve(q_l_vec, q_nl_vec, nl_vec, Sl_vec, s_opt_vec, t_opt_vec, sigma_l_vec, eta_l_vec, dt, gcc_ratio_func)
 
 
 ###################################################################
 ############################ PLOTS ################################
 ###################################################################
-plt.figure(0)
+fig = plt.figure(0)
+fig.set_size_inches(9, 3.5)
 
 ###################################################################
 ######################## R^*, T^* vs FLOPs ########################
 ###################################################################
-plt.subplot(2,2,1)
+plt.subplot(1,2,1)
 plt.title("(a) Compute optimal size-scaling")
 
+plt.axvline(x=5.73*1e23, color='#008080', linestyle='--')
 plt.plot(flops_vec_adjusted, N_opt_vec, 'r-', label="$N^*$ (model size)")
 plt.plot(flops_vec_adjusted, D_opt_vec, 'b-', label="$D^*$ (dataset size)")
 plt.ylabel("$N^*$ or $D^*$")
 plt.plot(5.73*1e23, 63*1e9, "r*", markersize=10)
 plt.plot(5.73*1e23, 1.4*1e12, "b*", markersize=10)
+plt.xlim((1e18, 1e30))
+plt.ylim((5e7, 5e14))
 
 plt.xlabel("FLOPs ($C$)")
 plt.legend()
@@ -193,17 +180,25 @@ plt.grid()
 ###################################################################
 ############################ P_B vs R* ############################
 ###################################################################
-plt.subplot(2,2,2)
+plt.subplot(1,2,2)
 plt.title("(b) Excess entropy scaling")
-plt.plot(N_opt_vec, excess_entropy_lb, 'b--', label="$\\frac{1}{2} P_{e, train}^2 \leq D_{KL}(p || q)$", linewidth=2) # good
+# plt.plot(N_opt_vec, excess_entropy_lb, 'b-', label="$\\frac{1}{2} P_{e, train}^2 \leq D_{KL}(p || q)$", linewidth=2) # good
+# plt.plot(N_opt_vec, excess_entropy_lb_fit, 'r--', label="$N^{"+slope_str+"}$", linewidth=1)
+plt.plot(N_opt_vec, excess_entropy_lb, 'b-', label="Lower bound ($\\frac{1}{2} P_{e, train}^2$)", linewidth=2) # good
+plt.plot(N_opt_vec, chinchilla_xs_entropy_scaling, 'm-.', label="Empirical", linewidth=2)
+
+
 # plt.plot(N_opt_vec, excess_entropy_lb_approx, 'r--', label="approx", linewidth=2) # approx
 
 plt.xlabel("$N^*$ (No. of parameters)")
-plt.ylabel("Excess entropy lower bound")
+plt.ylabel("Excess entropy")
 plt.xscale("log")
 plt.yscale("log")
 plt.legend()
 plt.grid()
+plt.tight_layout()
+
+plt.savefig("chinchilla_loss_scaling.svg", format='svg')
 
 ###################################################################
 ###################################################################
@@ -211,34 +206,49 @@ plt.grid()
 plt.figure(1)
 
 plt.subplot(2,2,1)
-plt.title("(a) Emergence")
-plt.plot(N_opt_vec, gcc_ratio_onesubtask, linewidth=2, label="$\gamma^{n_l}$")
+plt.title("(a) Emergence (homogeneous)")
+plt.plot(N_opt_vec, gcc_ratio_1subtask, linewidth=2)
 plt.xlabel("$N^*$ (No. of parameters)")
 plt.ylabel("Accuracy")
 plt.xscale("log")
-plt.legend()
 plt.grid()
 
 plt.subplot(2,2,2)
 plt.title("(b) Skill-level distribution")
-plt.plot(N_opt_vec, gcc_ratio_onesubtask, linewidth=2, label="$\gamma^{n_l}$")
-plt.xlabel("$N^*$ (No. of parameters)")
-plt.ylabel("Accuracy")
-plt.xscale("log")
+# plt.plot(L_vec, q_l_vec_unimodal, "rs", linewidth=2, label="unimodal")
+# plt.plot(L_vec, q_l_vec_multimodal, "bo", linewidth=2, label="multimodal")
+plt.plot(L_vec, q_l_vec_unimodal, "rs", markersize=5, label="unimodal")
+plt.plot(L_vec, q_l_vec_multimodal, "bo", markersize=5, label="multimodal")
+plt.xlabel("Skill level $l$")
+plt.ylabel("$q(l)$")
 plt.legend()
 plt.grid()
 
 ###################################################################
 ############################ P_B vs R* ############################
 ###################################################################
-plt.subplot(2,2,4)
-plt.title("(d) Plateauing and multiple emergences")
+plt.subplot(2,2,3)
+plt.title("(c) Emergence (unimodal)")
 # plt.plot(N_opt_vec, (gcc_ratio_avg), "-o", linewidth=2, label="$\sum_{l} q_{n_l, l} \gamma^{n_l}_l$")
-plt.plot(N_opt_vec, (gcc_ratio_avg), linewidth=2, label="$\sum_{l} q_{n_l, l} \gamma^{n_l}_l$")
+plt.plot(N_opt_vec, gcc_ratio_avg_unimodal, "r-", linewidth=2)
 
 plt.xlabel("$N^*$ (No. of parameters)")
 plt.ylabel("Accuracy")
-plt.legend()
+# plt.legend()
+plt.xscale("log")
+plt.grid()
+
+###################################################################
+############################ P_B vs R* ############################
+###################################################################
+plt.subplot(2,2,4)
+plt.title("(d) Plateauing (multimodal)")
+# plt.plot(N_opt_vec, (gcc_ratio_avg), "-o", linewidth=2, label="$\sum_{l} q_{n_l, l} \gamma^{n_l}_l$")
+plt.plot(N_opt_vec, gcc_ratio_avg_multi_modal, "b-", linewidth=2)
+
+plt.xlabel("$N^*$ (No. of parameters)")
+plt.ylabel("Accuracy")
+# plt.legend()
 plt.xscale("log")
 plt.grid()
 
@@ -246,8 +256,14 @@ plt.grid()
 
 plt.tight_layout()
 
-plt.savefig("size_loss_scaling_emerg_plateau.pdf", format='pdf')
+# plt.savefig("emerg_plateau.svg", format='pdf')
 
 plt.show(block=False)
+
+# plt.figure(2)
+# plt.plot(L_vec, eta_l_vec)
+# plt.ylabel("$\eta_l$")
+# plt.xlabel("Skill level ($l$)")
+
 
 brkpnt1 = 1

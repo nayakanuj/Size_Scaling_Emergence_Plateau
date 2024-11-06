@@ -378,3 +378,44 @@ def generate_zipf_samples(min_rank, max_rank, size, a=1.0):
     samples = np.random.choice(ranks, size=size, p=probabilities)
     
     return samples
+  
+def KL_div(p, q):    
+  kl_div_vec = np.zeros(p.shape)
+  for ind in range(len(p)):
+      kl_div_vec[ind] = p[ind]*np.log2(p[ind]/q[ind])+(1-p[ind])*np.log2((1-p[ind])/(1-q[ind]))
+  return kl_div_vec
+
+
+
+def get_accuracy_curve(q_l_vec, q_nl_vec, nl_vec, Sl_vec, s_opt_vec, t_opt_vec, sigma_l_vec, eta_l_vec, dt, gcc_ratio_func):
+    
+    gcc_ratio_avg = np.zeros(t_opt_vec.shape)
+    prereq_factor = np.ones(t_opt_vec.shape)
+    
+    subtaskidx = 10
+
+    for ind_l, q_l in enumerate(q_l_vec):
+        for ind_nl, q_nl in enumerate(q_nl_vec):
+            Sl = Sl_vec[ind_l]
+            nl = nl_vec[ind_nl] # num skills reqd for subtask
+            eta_l = eta_l_vec[ind_l]
+            Rc2 = s_opt_vec*(s_opt_vec-1)/2
+
+            pss_vec = (1/Sl**2)*(1-(1-(dt/s_opt_vec)**2)**(t_opt_vec))  # exact
+            # pss_vec = (1/Sl**2)*((dt/s_opt_vec)**2)*(t_opt_vec) # approx
+            
+            # Chernoff bound
+            term1_pl = (1-np.exp(-Rc2*KL_div(eta_l/Rc2, pss_vec)))*(eta_l/Rc2 < pss_vec) + (1/np.sqrt(2*Rc2))*np.exp(-Rc2*KL_div(eta_l/Rc2, pss_vec))*(eta_l/Rc2 > pss_vec) 
+            term2_pl = prereq_factor**(2*sigma_l_vec[ind_l]) #  factor of 2 - one for s_1 and another for s_2    
+            pl_vec = term1_pl*term2_pl
+
+            gcc_ratio_vec = np.array([gcc_ratio_func(pl_vec[ind], Sl) for ind in range(len(pl_vec))])
+            gcc_ratio_vec = np.nan_to_num(gcc_ratio_vec)
+            gcc_ratio_avg = gcc_ratio_avg+q_l*q_nl*(gcc_ratio_vec**nl)
+        
+        if ind_l == subtaskidx:
+            gcc_ratio_onesubtask = gcc_ratio_vec**nl
+            
+            prereq_factor = gcc_ratio_vec
+    
+    return gcc_ratio_avg, gcc_ratio_onesubtask

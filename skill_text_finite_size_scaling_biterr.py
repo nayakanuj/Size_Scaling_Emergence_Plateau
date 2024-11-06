@@ -72,8 +72,8 @@ if __name__ == "__main__":
     # num_FLOPS = 50
 
     min_FLOPS = 1e2
-    max_FLOPS = 1e16
-    num_FLOPS = 100
+    max_FLOPS = 1e20
+    num_FLOPS = 200
 
     # ## for Iso-FLOP curves
     # min_FLOPS = 1e4
