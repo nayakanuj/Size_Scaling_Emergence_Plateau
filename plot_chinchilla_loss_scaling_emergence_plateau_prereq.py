@@ -60,7 +60,8 @@ term_2c = del_vec*p_vec*R_vec*((1-p_vec)**(R_vec-1))
 
 # train_err = (term_1a-term_2a)-(term_1b-term_2b)-(term_1c-term_2c) # correct
 train_err = 1-((1-p_vec*del_vec)**(R_vec-1))*(1+p_vec*R_vec*del_vec) # correct, simplified
-train_err_approx = 4*(dt*del_vec)**2
+# train_err_approx = 4*(dt*del_vec)**2
+train_err_approx = (dt*del_vec)**2
 
 excess_entropy_lb = 0.5*(train_err**2)
 # excess_entropy_lb_approx = -np.log(1-train_err_approx**2)
